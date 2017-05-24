@@ -224,6 +224,10 @@ t/data/npg/run_status.xml
 t/data/npg/run_status_dict.xml
 t/data/npg/run_status_dict/17.xml
 t/data/npg/run_status_dict/6.xml
+t/data/rapid_run/20145_RunInfo.xml
+t/data/rapid_run/samplesheet_20145.csv
+t/data/rapid_run/npg/instrument/108.xml
+t/data/rapid_run/npg/run/20145.xml
 t/data/Recipes/Recipe_GA2-PEM_MP_2x76Cycle+8_v7.7.xml
 t/data/Recipes/Recipe_GA2_37Cycle_PE_v6.1.xml
 t/data/Recipes/TileLayout.xml
