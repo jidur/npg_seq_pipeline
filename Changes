@@ -1,6 +1,6 @@
 LIST OF CHANGES
 ---------------
-
+ - rapid run lane 1 and 2 merging for stage 2 analysis  
 release 51.9
  - p4stage2 speed-up by caching references
  - p4stage2 errors in getting a reference made fatal

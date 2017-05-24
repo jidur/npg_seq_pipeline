@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<run id_run="20145" batch_id="47068" id_instrument="108" expected_cycle_count="500" actual_cycle_count="500" priority="4" id_run_pair="0" is_paired="0" team="C" id_instrument_format="10" flowcell_id="HW3H5BCXX" folder_name="160623_HS31_20145_A_HW3H5BCXX" folder_path_glob="/{export,nfs}/sf44/ILorHSany_sf44/*/" name="HS31_20145" loader="ajw" loading_date="2016-06-23" run_folder="160623_HS31_20145_A_HW3H5BCXX">
+ <instrument id_instrument="108" name="HS31" id_instrument_format="10" external_name="" serial="" iscurrent="1" />
+ <run_lanes><run_lane id_run_lane="119817" id_run="20145" tile_count="48" tracks="6" position="1" />
+<run_lane id_run_lane="119818" id_run="20145" tile_count="48" tracks="6" position="2" />
+</run_lanes>
+ <current_run_status id_run_status="271648" id_run="20145" date="2016-06-28 09:41:46" id_run_status_dict="20" id_user="7" username="pipeline" iscurrent="1" description="qc complete" />
+ <run_statuses>
+ <run_status id_run_status="271648" id_run="20145" date="2016-06-28 09:41:46" id_run_status_dict="20" id_user="7" username="pipeline" iscurrent="1" description="qc complete" />
+ <run_status id_run_status="271647" id_run="20145" date="2016-06-28 09:41:44" id_run_status_dict="12" id_user="7" username="pipeline" iscurrent="0" description="run archived" />
+ <run_status id_run_status="271645" id_run="20145" date="2016-06-28 09:40:14" id_run_status_dict="18" id_user="7" username="pipeline" iscurrent="0" description="archival in progress" />
+ <run_status id_run_status="271640" id_run="20145" date="2016-06-28 09:28:28" id_run_status_dict="17" id_user="7" username="pipeline" iscurrent="0" description="archival pending" />
+ <run_status id_run_status="271637" id_run="20145" date="2016-06-28 09:15:14" id_run_status_dict="26" id_user="112" username="pipeline" iscurrent="0" description="qc in progress" />
+ <run_status id_run_status="271613" id_run="20145" date="2016-06-28 02:58:53" id_run_status_dict="19" id_user="7" username="pipeline" iscurrent="0" description="qc review pending" />
+ <run_status id_run_status="271612" id_run="20145" date="2016-06-28 02:58:40" id_run_status_dict="9" id_user="7" username="pipeline" iscurrent="0" description="analysis complete" />
+ <run_status id_run_status="271380" id_run="20145" date="2016-06-26 15:25:02" id_run_status_dict="24" id_user="7" username="pipeline" iscurrent="0" description="secondary analysis in progress" />
+ <run_status id_run_status="271347" id_run="20145" date="2016-06-25 20:25:21" id_run_status_dict="7" id_user="7" username="pipeline" iscurrent="0" description="analysis in progress" />
+ <run_status id_run_status="271345" id_run="20145" date="2016-06-25 20:18:31" id_run_status_dict="11" id_user="7" username="pipeline" iscurrent="0" description="run mirrored" />
+ <run_status id_run_status="271346" id_run="20145" date="2016-06-25 20:18:31" id_run_status_dict="6" id_user="7" username="pipeline" iscurrent="0" description="analysis pending" />
+ <run_status id_run_status="271339" id_run="20145" date="2016-06-25 19:51:31" id_run_status_dict="4" id_user="7" username="pipeline" iscurrent="0" description="run complete" />
+ <run_status id_run_status="271087" id_run="20145" date="2016-06-23 12:06:18" id_run_status_dict="2" id_user="7" username="pipeline" iscurrent="0" description="run in progress" />
+ <run_status id_run_status="271060" id_run="20145" date="2016-06-23 10:22:03" id_run_status_dict="1" id_user="33" username="pipeline" iscurrent="0" description="run pending" />
+ </run_statuses>
+ <annotations>
+ <annotation id_run_annotation="74012" id_run="20145" id_annotation="76987" date="2016-06-28 09:28:50" id_user="112" username="nm1" comment="QC Complete." attachment_name="" run_current_ok="" current_cycle="" />
+ </annotations>
+ <tags>
+   <tag id_tag="22" description="fc_slotA" />
+   <tag id_tag="17" description="paired_read" />
+   <tag id_tag="16" description="rta" />
+ </tags>
+</run>
+

@@ -25,6 +25,8 @@ Readonly::Scalar our $NUM_SLOTS                    => q(12,16);
 Readonly::Scalar our $MEMORY                       => q{32000}; # memory in megabytes
 Readonly::Scalar our $FORCE_BWAMEM_MIN_READ_CYCLES => q{101};
 Readonly::Scalar my  $QC_SCRIPT_NAME               => q{qc};
+Readonly::Scalar my  $INPUT_SUFFIX                 => q{.bam};
+Readonly::Scalar my  $AFM_INPUT_SUFFIX             => $INPUT_SUFFIX .q{_alignment_filter_metrics.json}; #FIXME
 
 =head2 phix_reference
 
@@ -133,7 +135,8 @@ sub _create_lane_dirs {
 sub generate {
   my ( $self, $arg_refs ) = @_;
 
-  my (@lanes) = $self->positions($arg_refs);
+  my (@lanes) = $self->lsf_positions($arg_refs);
+
   if ( ref $lanes[0] && ref $lanes[0] eq q{ARRAY} ) {   @lanes = @{ $lanes[0] }; }
 
   $self->_generate_command_arguments(\@lanes);
@@ -183,24 +186,26 @@ sub _save_arguments {
 }
 
 sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity)
-  my ( $self, $l, $is_plex ) = @_;
+  my ( $self, $l, $rpt_list, $is_plex ) = @_;
 
   $is_plex ||= 0;
   my $id_run = $self->id_run;
   my $position = $l->position;
-  my $name_root = $id_run . q{_} . $position;
+  my $name_root = $self->rapid_run ? $id_run : $id_run . q{_} . $position;
   my $tag_index;
   my $spike_tag;
   my $input_path= $self->input_path;
   my $archive_path= $self->archive_path;
   my $qcpath= $self->qc_path;
+  my @inputpaths = @{ $self->_get_input_paths($rpt_list) };
+
   if($is_plex) {
     $tag_index = $l->tag_index;
     $spike_tag = (defined $l->spiked_phix_tag_index and $l->spiked_phix_tag_index == $tag_index);
     $name_root .= q{#} . $tag_index;
     $input_path  .= qq{/lane$position};
-    $archive_path = $self->lane_archive_path($position);
-    $qcpath       = $self->lane_qc_path($position);
+    $archive_path = $self->rapid_run ? $archive_path .= q[/lane] . $self->merged_multiplexed_position : $self->lane_archive_path($position);
+    $qcpath       = $self->rapid_run ? $archive_path.q[/qc] : $self->lane_qc_path($position);
   }
 
   if (1 < sum $l->contains_nonconsented_xahuman, $l->separate_y_chromosome_data, $l->contains_nonconsented_human) {
@@ -293,17 +298,21 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
   # handle targeted stats_(bait_stats_analysis) here, handling the interaction with spike tag case
   my $bait_stats_flag = q[];
   my $spike_splicing = q[];
+
   if(not $spike_tag) {
     if($self->_do_bait_stats_analysis($l)) {
       $p4_param_vals->{bait_regions_file} = $self->_bait($l)->bait_intervals_path();
-      $bait_stats_flag = q(-prune_nodes '"'"'fop(phx|hs)_samtools_stats_F0.*00_bait.*'"'"');
+      $bait_stats_flag = $self->rapid_run ? q(-prune_nodes '"'"'fop(phx|hs)_samtools_stats_F0.*00_bait.*-;.*calibration_pu.*-'"'"') :
+          q(-prune_nodes '"'"'fop(phx|hs)_samtools_stats_F0.*00_bait.*-'"'"');
     }
     else {
-      $bait_stats_flag = q(-prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*'"'"');
+     $bait_stats_flag = $self->rapid_run ? q(-prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-;.*calibration_pu.*-'"'"') :
+         q(-prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-'"'"');
     }
   } else {
-    $bait_stats_flag = q(-prune_nodes '"'"'foptgt.*samtools_stats_F0.*00_bait.*'"'"');
-    $spike_splicing = q[-splice_nodes '"'"'src_bam:-foptgt_bamsort_coord:;foptgt_seqchksum_tee:__FINAL_OUT__-scs_cmp_seqchksum:__OUTPUTCHK_IN__'"'"'];
+      $bait_stats_flag = $self->rapid_run ? q(-prune_nodes '"'"'foptgt.*samtools_stats_F0.*00_bait.*-;foptgt.*calibration_pu.*-'"'"') :
+         q(-prune_nodes '"'"'foptgt.*samtools_stats_F0.*00_bait.*-'"'"');
+      $spike_splicing = q[-splice_nodes '"'"'teecat:__COLLATE_OUT__:-foptgt_bamsort_coord:;foptgt_seqchksum_tee:__FINAL_OUT__-scs_cmp_seqchksum:__OUTPUTCHK_IN__'"'"'];
   }
 
   if($do_rna) {
@@ -366,6 +375,7 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
                          q(-keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads`),
                          q(-keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2`),
                          q(-keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2`),
+                         join q( ), @inputpaths,
                          (grep {$_}
                            $bait_stats_flag,
                            $spike_splicing, # empty unless this is the spike tag
@@ -377,43 +387,43 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
                        q{&&},
                        qq(viv.pl -s -x -v 3 -o viv_$name_root.log run_$name_root.json ),
                        q{&&},
-                       _qc_command('bam_flagstats', $archive_path, $qcpath, $l, $is_plex),
+                       _qc_command('bam_flagstats', $archive_path, $qcpath, $rpt_list, $name_root),
                        (grep {$_}
                        ((not $spike_tag)? (join q( ),
                          q{&&},
-                         _qc_command('bam_flagstats', $archive_path, $qcpath, $l, $is_plex, 'phix'),
+                         _qc_command('bam_flagstats', $archive_path, $qcpath, $rpt_list, $name_root, 'phix'),
                          q{&&},
-                         _qc_command('alignment_filter_metrics', undef, $qcpath, $l, $is_plex),
+                         _qc_command('alignment_filter_metrics', undef, $qcpath, $rpt_list, $name_root),
                        ) : q()),
                        $human_split ? join q( ),
                          q{&&},
-                         _qc_command('bam_flagstats', $archive_path, $qcpath, $l, $is_plex, $human_split),
+                         _qc_command('bam_flagstats', $archive_path, $qcpath, $rpt_list, $name_root, $human_split),
                          : q(),
                        $nchs ? join q( ),
                          q{&&},
-                         _qc_command('bam_flagstats', $archive_path, $qcpath, $l, $is_plex, $nchs_outfile_label),
+                         _qc_command('bam_flagstats', $archive_path, $qcpath, $rpt_list, $name_root, $nchs_outfile_label),
                          : q(),
                        ),
                      q(');
 }
 
 sub _qc_command {##no critic (Subroutines::ProhibitManyArgs)
-  my ($check_name, $qc_in, $qc_out, $l, $is_plex, $subset) = @_;
+  my ($check_name, $qc_in, $qc_out, $rpt_list, $name_root, $subset) = @_;
 
-  my $args = {'id_run' => $l->id_run, 'position' => $l->position};
-  if ($is_plex && defined $l->tag_index) {
-    $args->{'tag_index'} = $l->tag_index;
-  }
+  my $args = {'rpt_list' => q["].$rpt_list.q["]};
+
   if ($check_name eq 'bam_flagstats') {
     if ($subset) {
-      $args->{'subset'} = $subset;
+      $name_root .= q[_]. $subset;
     }
-    $args->{'qc_in'}  = $qc_in;
+    $args->{'input_files'}  = $qc_in .q[/]. $name_root . $INPUT_SUFFIX;
   } else {
-    $args->{'qc_in'}  = q[$] . 'PWD';
+    $args->{'input_files'}  = q[$] . 'PWD' .q[/]. $name_root . $AFM_INPUT_SUFFIX;
   }
   $args->{'qc_out'} = $qc_out;
   $args->{'check'}  = $check_name;
+  $args->{'filename_root'} = $name_root;
+
   my $command = q[];
   foreach my $arg (sort keys %{$args}) {
     $command .= join q[ ], q[ --].$arg, $args->{$arg};
@@ -445,27 +455,67 @@ sub _generate_command_arguments {
       my $plex_lims = $lane_lims->children_ia();
       $plex_lims->{0} ||= st::api::lims->new(driver=>$lane_lims->driver, id_run=>$lane_lims->id_run, position=>$lane_lims->position, tag_index=>0);
       foreach my $tag_index ( @{ $self->get_tag_index_list($position) } ) {
+        my $rpt_list;
         my $l = $plex_lims->{$tag_index};
         if (!$l) {
           $self->debug(qq{No lims object for position $position tag index $tag_index});
           next;
         }
+
+        $rpt_list = $self->rapid_run ? $self->_merged_rptlist($lane_lims,$tag_index)
+                    : npg_tracking::glossary::rpt->deflate_rpt({id_run=>$lane_lims->id_run,position=>$position,tag_index=>$tag_index});
+
         my $ji = $self->_job_index($position, $tag_index);
-        $self->_job_args->{$ji} = $self->_lsf_alignment_command($l,1);
+        $self->_job_args->{$ji} = $self->_lsf_alignment_command($l,$rpt_list,1);
         $self->_using_alt_reference($self->_is_alt_reference($l));
       }
     } else { # do lane level analyses
+      my $rp_str;
       my $l = $lane_lims;
       my $ji = $self->_job_index($position);
-      $self->_job_args->{$ji} = $self->_lsf_alignment_command($l);
+
+      $rp_str = $self->rapid_run ? $self->_merged_rptlist($lane_lims)
+                : npg_tracking::glossary::rpt->deflate_rpt({id_run=>$lane_lims->id_run,position=>$position});
+      $self->_job_args->{$ji} = $self->_lsf_alignment_command($l,$rp_str);
     }
   }
   return;
 }
 
+sub _merged_rptlist { # for rapid runs
+    my ($self,$lane_lims,$tag_index) = @_;
+    my @rpts;
+
+       foreach my $p($self->all_positions){
+            my $rpt = $tag_index ? {id_run=>$lane_lims->id_run,position=>$p,tag_index=>$tag_index}
+	                         : {id_run=>$lane_lims->id_run,position=>$p};
+
+	    push @rpts, npg_tracking::glossary::rpt->deflate_rpt($rpt);
+       }
+       return npg_tracking::glossary::rpt->join_rpts(@rpts);
+}
+
+
 sub _has_newer_flowcell { # is HiSeq High Throughput >= V4, Rapid Run >= V2
   my ($self) = @_;
   return $self->flowcell_id() =~ /(?:A[N-Z]|[B-Z][[:upper:]])XX\z/smx;
+}
+
+sub _get_input_paths { #e.g. /path/no_cal/lane2/18472_2#2.bam  /path/no_cal/12597_3.bam
+    my($self, $rpt_list) = @_;
+
+    my $input_path= $self->input_path;
+    my @ipaths = ();
+    foreach my $rpt ( @{ npg_tracking::glossary::rpt->inflate_rpts($rpt_list) }){
+        my $run_pos    =  join q[], $rpt->{'id_run'},q{_},$rpt->{'position'};
+
+        my $ipath = defined $rpt->{'tag_index'}
+               ? $input_path.(join q[], q{/lane},$rpt->{'position'},q{/},$run_pos,q{#},$rpt->{'tag_index'}).$INPUT_SUFFIX
+	       : $input_path.q{/}.$run_pos.$INPUT_SUFFIX;
+
+	push @ipaths, q{-keys src_bams -vals }. $ipath;
+    }
+    return \@ipaths;
 }
 
 sub _do_rna_analysis {

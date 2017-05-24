@@ -165,12 +165,21 @@ sub _generate_bsub_command {
   return $job_sub;
 }
 
+
+sub _is_pre_check{
+    my($self,$check) = @_;
+    my $qc = $self->qc_to_run;
+    if ($qc =~ /^qX_yield|adapter|insert_size|sequence_error|gc_fraction|ref_match$/smx){
+        return 1;
+    }
+    return;
+}
+
 sub _qc_command {
   my ($self, $indexed) = @_;
 
   my $c = $QC_SCRIPT_NAME;
   $c .= q{ --check=} . $self->qc_to_run();
-  $c .= q{ --id_run=} . $self->id_run();
 
   if ( $self->qc_to_run() eq q[adapter] ) {
     $c .= q{ --file_type=bam};
@@ -183,20 +192,48 @@ sub _qc_command {
   my $lanestr           = $self->_position_decode_string();
   my $tagstr            = $self->_tag_index_decode_string();
 
+
   if (defined $indexed) {
+
+    my $root = $self->id_run() . q{_}. $lanestr .q{#}. $tagstr;
+
+    if($self->rapid_run && !$self->_is_pre_check){
+        $root    = $self->id_run() .q{#}. $tagstr;
+        $lanestr = join '_', q[],$self->all_positions; # _1_2
+
+        $c .= q{ --rpt_list=}. q{"} . $self->id_run() .q{:1:}. $tagstr .q{;}.
+            $self->id_run() .q{:2:}. $tagstr .q{"};
+    }else{
+        $c .= q{ --rpt_list=}. $self->id_run() .q{:}. $lanestr. q{:}. $tagstr;
+    }
+
     my $lane_archive_path = File::Spec->catfile($archive_path, q[lane] . $lanestr);
+
     $qc_in = ( $self->qc_to_run() eq q[adapter]) ?
         File::Spec->catfile($recalibrated_path, q[lane] . $lanestr) : $lane_archive_path;
+
+    if($self->_is_pre_check){
+        $c .= qq{ --qc_in=$qc_in};
+    }else{
+        $c .= q{ --input_files=}. $qc_in .q{/}. $root .q{.bam};
+        $c .= q{ --filename_root=}. $root;
+    }
+
     $qc_out = File::Spec->catfile($lane_archive_path, q[qc]);
-    $c .= q{ --position=}  . $lanestr;
-    $c .= q{ --tag_index=} . $tagstr;
+
   } else {
+    ##FIXME - ces - for rapid merge
+    $c .= q{ --id_run=} . $self->id_run();
     $c .= q{ --position=}  . $self->lsb_jobindex();
     $qc_in  = $self->qc_to_run() eq q{tag_metrics} ? $self->bam_basecall_path :
         (($self->qc_to_run() eq q[adapter]) ? $recalibrated_path : $archive_path);
+
     $qc_out = $self->qc_path();
+    $c .= qq{ --qc_in=$qc_in};
   }
-  $c .= qq{ --qc_in=$qc_in --qc_out=$qc_out};
+
+  $c .= qq{ --qc_out=$qc_out};
+
 
   if ($REQUIRES_QC_REPORT_DIR->{$self->qc_to_run()}) {
     my @archive_qc_path = ($archive_path, q[qc], $REQUIRES_QC_REPORT_DIR->{$self->qc_to_run()});
@@ -256,19 +293,26 @@ sub _lsf_job_array {
   my ($self, $indexed) = @_;
 
   my @lsf_indices = ();
-  foreach my $lane ($self->positions()) {
+
     if ($indexed) {
-      foreach my $tag (@{$self->get_tag_index_list($lane)}) {
-        if ( $self->_should_run($lane, $tag) ) {
-          push @lsf_indices, ( $lane * $LSF_INDEX_MULTIPLIER ) + $tag;
-        }
+      my @pos = ($self->rapid_run && !$self->_is_pre_check) ? $self->lsf_positions() : $self->positions();
+      foreach my $lane (@pos) {
+          foreach my $tag (@{$self->get_tag_index_list($lane)}) {
+              if ( $self->_should_run($lane, $tag) ) {
+                  push @lsf_indices, ( $lane * $LSF_INDEX_MULTIPLIER ) + $tag;
+              }
+          }
       }
-    } else {
+  }
+
+  if(! $indexed) {
+      foreach my $lane ($self->positions()) {
       if ( $self->_should_run($lane) ) {
         push @lsf_indices, $lane;
       }
     }
   }
+
   @lsf_indices = sort { $a <=> $b } @lsf_indices;
   return @lsf_indices ? npg_pipeline::lsf_job->create_array_string(@lsf_indices) : q[];
 }

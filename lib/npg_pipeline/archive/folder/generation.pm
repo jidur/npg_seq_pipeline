@@ -8,7 +8,7 @@ our $VERSION = '0';;
 
 extends q{npg_pipeline::base};
 
-sub create_dir {
+sub create_dir { ## no critic (Subroutines::ProhibitExcessComplexity)
   my ($self, $owning_group) = @_;
 
   $owning_group ||= $ENV{OWNING_GROUP};
@@ -73,17 +73,21 @@ sub create_dir {
 
   #############
   # check existence of multiplex lane and qc directory
-  # create if they doesn't
+  # create if they don't
   if( $self->is_indexed() ){
 
-      my @positions = $self->positions();
+      my @pos_to_create = ();
 
-      foreach my $position ( @positions ){
-
-          if ( ! $self->is_multiplexed_lane( $position ) ) {
-             next;
+      foreach my $position ( $self->positions() ){
+          if ( $self->is_multiplexed_lane( $position ) ) {
+              push @pos_to_create, $position;
           }
+      }
+      if($self->merged_multiplexed_position){
+          push @pos_to_create, $self->merged_multiplexed_position;
+      }
 
+      foreach my $position ( @pos_to_create ){
           my $lane_dir = $archive_dir . q{/lane} . $position;
 
           if ( ! -d $lane_dir ) {

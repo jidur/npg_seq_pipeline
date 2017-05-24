@@ -101,6 +101,64 @@ sub is_qc_run {
   return $lims_id && $lims_id =~ /\A\d{13}\z/smx; # it's a tube barcode
 }
 
+
+=head2 rapid_run
+
+Boolean flag indicating whether this run is a rapid run,
+will be built if not supplied;
+
+=cut
+
+
+has q{rapid_run} => (isa        => q{Bool},
+                     is         => q{ro},
+                     lazy_build => 1,
+                     documentation => q{Boolean flag indicating whether the run is rapid run, }.
+                     q{will be built if not supplied},);
+sub _build_rapid_run {
+  my $self = shift;
+  return $self->is_rapid_run();
+}
+
+=head2 is_rapid_run
+
+Examines id_flowcell_lims attribute. If flowcell barcode is ADXX, ADXY or BCXX 
+returns true
+
+=cut
+
+sub is_rapid_run {
+  my ($self) = @_;
+  return $self->flowcell_id() =~ /(?:AD|BC)X([XY])\z/smx;
+}
+
+
+=head2 merged_multiplexed_position
+
+String of multiplexed positions joined and prefixed by '_' if they exist. 
+Will be will be built if not supplied.
+
+=cut
+
+has q{merged_multiplexed_position} => (isa        => 'Maybe[Str]',
+                                       is         => q{ro},
+                                       lazy_build => 1,
+                                       required   => 0,
+                                       metaclass  => q{NoGetopt},
+                                       documentation => q{Optional merged multiplexed position},);
+
+sub _build_merged_multiplexed_position {
+  my $self = shift;
+  my $mmp;
+  if($self->rapid_run()){
+      if(@{$self->multiplexed_lanes} == $self->positions){
+          $mmp = join q[], map { '_'. $_ } $self->positions;
+      }
+  }
+  return $mmp || q[];
+}
+
+
 =head2 lims_driver_type
 
 Optional lims driver type name
@@ -227,6 +285,22 @@ has q{gclp}  => (
   lazy_build    => 1,
   documentation => q{Boolean describing whether this analysis is GCLP with a default based on the function_list if set},
 );
+
+
+
+=head2 lsf_positions
+
+An array of lane positions for lsf related submissions.
+
+=cut
+
+sub lsf_positions {
+  my $self = shift;
+
+  my @positions = $self->rapid_run ? (($self->positions())[0]) : $self->positions;
+  return @positions;
+}
+
 
 =head2 positions
 
