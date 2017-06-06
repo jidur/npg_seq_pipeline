@@ -282,7 +282,7 @@ subtest 'test 2' => sub {
 };
 
 subtest 'test 3' => sub {
-  plan tests => 6;
+  plan tests => 7;
   ## single ended v. short , old flowcell, CRIPSR
 
   my $runfolder = q{151215_HS38_18472_A_H55HVADXX};
@@ -316,16 +316,27 @@ subtest 'test 3' => sub {
 
    my $qc_out = qq[$bc_path/no_cal/archive/lane_1_2/qc];
 
-my $args = qq{bash -c ' mkdir -p $bc_path/no_cal/archive/tmp_\$LSB_JOBID/18472#1 ; cd $bc_path/no_cal/archive/tmp_\$LSB_JOBID/18472#1 && vtfp.pl -param_vals $bc_path/no_cal/lane2/18472#1_p4s2_pv_in.json -export_param_vals 18472#1_p4s2_pv_out_\${LSB_JOBID}.json -keys cfgdatadir -vals \$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib/ -keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads` -keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2` -keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2` -keys src_bams -vals $bc_path/no_cal/lane1/18472_1#1.bam -keys src_bams -vals $bc_path/no_cal/lane2/18472_2#1.bam -prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-;.*calibration_pu.*-'"'"' -nullkeys bwa_mem_p_flag \$(dirname \$(dirname \$(readlink -f \$(which vtfp.pl))))/data/vtlib/alignment_wtsi_stage2_template.json > run_18472#1.json && viv.pl -s -x -v 3 -o viv_18472#1.log run_18472#1.json } .
+my $args = {};
+   $args->{20001}= qq{bash -c ' mkdir -p $bc_path/no_cal/archive/tmp_\$LSB_JOBID/18472#1 ; cd $bc_path/no_cal/archive/tmp_\$LSB_JOBID/18472#1 && vtfp.pl -param_vals $bc_path/no_cal/lane2/18472#1_p4s2_pv_in.json -export_param_vals 18472#1_p4s2_pv_out_\${LSB_JOBID}.json -keys cfgdatadir -vals \$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib/ -keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads` -keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2` -keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2` -keys src_bams -vals $bc_path/no_cal/lane1/18472_1#1.bam -keys src_bams -vals $bc_path/no_cal/lane2/18472_2#1.bam -prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-;.*calibration_pu.*-'"'"' -nullkeys bwa_mem_p_flag \$(dirname \$(dirname \$(readlink -f \$(which vtfp.pl))))/data/vtlib/alignment_wtsi_stage2_template.json > run_18472#1.json && viv.pl -s -x -v 3 -o viv_18472#1.log run_18472#1.json } .
     qq{ && qc --check bam_flagstats --filename_root 18472#1 --input_files $bc_path/no_cal/archive/lane_1_2/18472#1.bam --qc_out $qc_out --rpt_list \"18472:1:1;18472:2:1\"} .
     qq{ && qc --check bam_flagstats --filename_root 18472#1_phix --input_files $bc_path/no_cal/archive/lane_1_2/18472#1_phix.bam --qc_out $qc_out --rpt_list \"18472:1:1;18472:2:1\"} .
     q{ && qc --check alignment_filter_metrics --filename_root 18472#1 --input_files $PWD/18472#1.bam_alignment_filter_metrics.json --qc_out } . $qc_out .qq{ --rpt_list \"18472:1:1;18472:2:1\"}.
      q{ '};
 
+   $args->{20000} = qq{bash -c ' mkdir -p $bc_path/no_cal/archive/tmp_\$LSB_JOBID/18472#0 ; cd $bc_path/no_cal/archive/tmp_\$LSB_JOBID/18472#0 && vtfp.pl -param_vals $bc_path/no_cal/lane2/18472#0_p4s2_pv_in.json -export_param_vals 18472#0_p4s2_pv_out_\${LSB_JOBID}.json -keys cfgdatadir -vals \$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib/ -keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads` -keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2` -keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2` -keys src_bams -vals $bc_path/no_cal/lane1/18472_1#0.bam -keys src_bams -vals $bc_path/no_cal/lane2/18472_2#0.bam -prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-;.*calibration_pu.*-'"'"' -nullkeys bwa_mem_p_flag \$(dirname \$(dirname \$(readlink -f \$(which vtfp.pl))))/data/vtlib/alignment_wtsi_stage2_template.json > run_18472#0.json && viv.pl -s -x -v 3 -o viv_18472#0.log run_18472#0.json } .
+    qq{ && qc --check bam_flagstats --filename_root 18472#0 --input_files $bc_path/no_cal/archive/lane_1_2/18472#0.bam --qc_out $qc_out --rpt_list \"18472:1:0;18472:2:0\"} .
+    qq{ && qc --check bam_flagstats --filename_root 18472#0_phix --input_files $bc_path/no_cal/archive/lane_1_2/18472#0_phix.bam --qc_out $qc_out --rpt_list \"18472:1:0;18472:2:0\"} .
+    q{ && qc --check alignment_filter_metrics --filename_root 18472#0 --input_files $PWD/18472#0.bam_alignment_filter_metrics.json --qc_out }
+. $qc_out .qq{ --rpt_list \"18472:1:0;18472:2:0\"}.
+ q{ '};
+
+
   lives_ok {$se_gen->_generate_command_arguments([2])}
      'no error generating command arguments';
-  is($se_gen->_job_args->{'20001'}, $args,
+  is($se_gen->_job_args->{'20001'}, $args->{'20001'},
     'correct command arguments for plex of short single read run and rapid run');  
+  is($se_gen->_job_args->{'20000'}, $args->{'20000'},
+    'correct command arguments for tag 0 of short single read run and rapid run');
   ok(!$se_gen->_using_alt_reference, 'Not using alternate reference');
   ok($se_gen->rapid_run,'rapid_run');
 };

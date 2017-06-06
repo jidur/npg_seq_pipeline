@@ -452,7 +452,7 @@ sub _generate_command_arguments {
       next;
     }
     if ( $self->is_indexed and $lane_lims->is_pool ) { # does the run have an indexing read _and_ does the LIMS have pool information : if so do plex level analyses
-      my $plex_lims = $lane_lims->children_ia();
+	    my $plex_lims = $lane_lims->children_ia();
       $plex_lims->{0} ||= st::api::lims->new(driver=>$lane_lims->driver, id_run=>$lane_lims->id_run, position=>$lane_lims->position, tag_index=>0);
       foreach my $tag_index ( @{ $self->get_tag_index_list($position) } ) {
         my $rpt_list;
@@ -461,7 +461,6 @@ sub _generate_command_arguments {
           $self->debug(qq{No lims object for position $position tag index $tag_index});
           next;
         }
-
         $rpt_list = $self->rapid_run ? $self->_merged_rptlist($lane_lims,$tag_index)
                     : npg_tracking::glossary::rpt->deflate_rpt({id_run=>$lane_lims->id_run,position=>$position,tag_index=>$tag_index});
 
@@ -485,9 +484,8 @@ sub _generate_command_arguments {
 sub _merged_rptlist { # for rapid runs
     my ($self,$lane_lims,$tag_index) = @_;
     my @rpts;
-
        foreach my $p($self->all_positions){
-            my $rpt = $tag_index ? {id_run=>$lane_lims->id_run,position=>$p,tag_index=>$tag_index}
+            my $rpt = defined $tag_index ? {id_run=>$lane_lims->id_run,position=>$p,tag_index=>$tag_index}
 	                         : {id_run=>$lane_lims->id_run,position=>$p};
 
 	    push @rpts, npg_tracking::glossary::rpt->deflate_rpt($rpt);
@@ -513,7 +511,8 @@ sub _get_input_paths { #e.g. /path/no_cal/lane2/18472_2#2.bam  /path/no_cal/1259
                ? $input_path.(join q[], q{/lane},$rpt->{'position'},q{/},$run_pos,q{#},$rpt->{'tag_index'}).$INPUT_SUFFIX
 	       : $input_path.q{/}.$run_pos.$INPUT_SUFFIX;
 
-	push @ipaths, q{-keys src_bams -vals }. $ipath;
+	    push @ipaths, q{-keys src_bams -vals }. $ipath;
+
     }
     return \@ipaths;
 }
