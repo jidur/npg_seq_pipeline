@@ -41,7 +41,7 @@ sub launch {
 sub _generate_bsub_command {
   my ($self, $arg_refs) = @_;
 
-  my $array_string = npg_pipeline::lsf_job->create_array_string($self->positions());
+  my $array_string = npg_pipeline::lsf_job->create_array_string($self->lsf_positions());
   my $required_job_completion = $arg_refs->{required_job_completion} || q{};
   my $timestamp = $self->timestamp();
   my $id_run = $self->id_run();
@@ -68,7 +68,6 @@ sub _generate_bsub_command {
   $job_sub .= q{'};
 
   $self->debug($job_sub);
-
   return $job_sub;
 }
 
@@ -83,8 +82,7 @@ Use diff -u rather than cmp and store the file on disk to help work out what has
 sub do_comparison {
   my ($self) = @_;
 
-  my $lanes = $self->lanes();
-
+  my $lanes = $self->is_rapid_run() ? [join q[_],$self->all_positions] : $self->lanes();
   if ( ! scalar @{$lanes}) {
     $self->logcroak( 'No lanes found, so not performing any bamseqchksum comparison');
   }
@@ -110,6 +108,15 @@ sub _compare_lane {
   my $input_seqchksum_file_name = $self->id_run . '_' . $position . '.post_i2b.seqchksum';
   my $lane_seqchksum_file_name = $self->id_run . '_' . $position . '.all.seqchksum';
 
+ if ($self->rapid_run){ # generate _1_2.post_i2b.seqchksum   
+         my $wd1 = getcwd();
+         $self->info("Changing to archive directory $input_seqchksum_dir");
+         chdir $input_seqchksum_dir or $self->logcroak('Failed to change directory');
+         my $scs_file_name_glob = $self->id_run . q{*.post_i2b.seqchksum};
+         $self->_run_seqchksum_merge($scs_file_name_glob,$position,$input_seqchksum_file_name);
+         chdir $wd1 or $self->logcroak("Failed to change back to $wd1");
+ }
+
   my $input_lane_seqchksum_file_name = File::Spec->catfile($input_seqchksum_dir, $input_seqchksum_file_name);
   if ( ! -e $input_lane_seqchksum_file_name ) {
     $self->logcroak("Cannot find $input_lane_seqchksum_file_name to compare: please check illumina2bam pipeline step");
@@ -119,20 +126,10 @@ sub _compare_lane {
   $self->info('Changing to archive directory ', $self->archive_path());
   chdir $self->archive_path() or $self->logcroak('Failed to change directory');
 
-  my $cram_file_name_glob = qq({lane$position/,}). $self->id_run . '_' . $position . q{*.cram};
-  my @crams = glob $cram_file_name_glob or
-    $self->logcroak("Cannot find any cram files using $cram_file_name_glob");
-  $self->info("Building .all.seqchksum for lane $position from cram in $cram_file_name_glob ...");
+  my $lane_pos = $self->rapid_run() ? (qq({lane_$position/,}).$self->id_run) : (qq({lane$position/,}).$self->id_run . '_' . $position);
+  my $cram_file_name_glob = $lane_pos . q{*.cram};
 
-  my $cmd = 'seqchksum_merge.pl ' . join(q{ }, @crams) . qq{> $lane_seqchksum_file_name};
-
-  if ($cmd ne q{}) {
-    $self->info("Running $cmd to generate $lane_seqchksum_file_name");
-    my $ret = system qq[/bin/bash -c "set -o pipefail && $cmd"];
-    if ( $ret  > 0 ) {
-      $self->logcroak("Failed to run command $cmd: $ret");
-    }
-  }
+  $self->_run_seqchksum_merge($cram_file_name_glob,$position,$lane_seqchksum_file_name);
 
   my $compare_cmd = q{diff -u <(grep '.all' } . $input_lane_seqchksum_file_name . q{ | sort) <(grep '.all' } . $lane_seqchksum_file_name . q{ | sort)};
   $self->info($compare_cmd);
@@ -146,6 +143,23 @@ sub _compare_lane {
   }
 
   return;
+}
+
+sub _run_seqchksum_merge {
+    my ($self,$file_name_glob,$position,$seqchksum_file_name) = @_;
+    my @files = glob $file_name_glob or
+                $self->logcroak("Cannot find any files using $file_name_glob");
+
+   $self->info("Building merged .seqchksum for lane $position from files in $file_name_glob ...");
+
+   my $cmd = 'seqchksum_merge.pl ' . join(q{ }, @files) . qq{> $seqchksum_file_name};
+
+    $self->info("Running $cmd to generate $seqchksum_file_name");
+    my $ret = system qq[/bin/bash -c "set -o pipefail && $cmd"];
+    if ( $ret  > 0 ) {
+      $self->logcroak("Failed to run command $cmd: $ret");
+    }
+return;
 }
 
 1;

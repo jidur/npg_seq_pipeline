@@ -1,5 +1,6 @@
 LIST OF CHANGES
 ---------------
+ - seqchksum_comparator changes for rapid run merging 
  - rapid run lane 1 and 2 merging for stage 2 analysis  
 release 51.9
  - p4stage2 speed-up by caching references

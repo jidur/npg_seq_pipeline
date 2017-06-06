@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 14;
+use Test::More tests => 17;
 use Test::Exception;
 use Log::Log4perl qw(:levels);
 use t::util;
@@ -129,6 +129,26 @@ END1
   } q{object ok};
 
   lives_ok{$object->launch( $arg_refs )} q{Launching with no positions does not throw an exception};
+
+   lives_ok {
+    $object = npg_pipeline::archive::file::generation::seqchksum_comparator->new(
+      run_folder => q{123456_IL2_1234},
+      runfolder_path => $analysis_runfolder_path,
+      bam_basecall_path => $bam_basecall_path,
+      archive_path => $archive_path,
+      id_run => 1234,
+      no_bsub => 1,
+      timestamp => $timestamp,
+      rapid_run => 1, #force
+      lanes => [1,2]
+    );
+  } q{object ok};
+
+  my $bsub_command = $util->drop_temp_part_from_paths( qq{bsub -q srpipeline -w'done(123) && done(321)' -J 'npg_pipeline_seqchksum_comparator_1234_20100907-142417[1]' -o $archive_path/log/npg_pipeline_seqchksum_comparator_1234_20100907-142417.%I.%J.out 'npg_pipeline_seqchksum_comparator --id_run=1234} .q{ --lanes=`echo $LSB_JOBINDEX` --archive_path=} . qq{$archive_path --bam_basecall_path=$bam_basecall_path'} ); 
+
+is( $util->drop_temp_part_from_paths( $object->_generate_bsub_command( $arg_refs ) ), $bsub_command, q{generated bsub command for rapid run} );  
+
+ is ($object->lsf_positions(),'1','Correct lsf_positions for rapid run');
 }
 
 1;
