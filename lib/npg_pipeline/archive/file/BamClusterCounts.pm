@@ -323,7 +323,7 @@ sub _populate_spatial_filter_counts{
                  $self->qc_path);
    }
    my $collection_lane = $collection->slice(q[position], $position);
-   my $spatial_filter_collection = $self->rapid_run ? $collection->slice('class_name', 'spatial_filter')  : 
+   my $spatial_filter_collection = $self->rapid_run ? $collection->slice('class_name', 'spatial_filter')  :
                                     $collection_lane->slice('class_name', 'spatial_filter');
 
    if( $spatial_filter_collection->is_empty() ){
@@ -333,25 +333,19 @@ sub _populate_spatial_filter_counts{
 
    my $results = $spatial_filter_collection->results();
 
-   if(@{$results} && $self->rapid_run()){
-       my $num_total_reads = 0;
-       my $num_spatial_filter_fail_reads = 0;
-       foreach my $qc_result (@{$results}){
-           $num_total_reads += $qc_result->num_total_reads();
-           $num_spatial_filter_fail_reads += $qc_result->num_spatial_filter_fail_reads();
-       }
-       $self->_set__spatial_filter_processed_count($num_total_reads);
-       $self->_set__spatial_filter_failed_count($num_spatial_filter_fail_reads);
-       return $results->[0];
-   }
-
-   if(@{$results} > 1){
+   if((@{$results} > 1) &! $self->rapid_run()){
      $self->logcroak("More than one spatial_filter result available for this lane $position in here: ",
                      $self->qc_path);
    }elsif(@{$results}){
      my $qc_result = $results->[0];
-     $self->_set__spatial_filter_processed_count($qc_result->num_total_reads());
-     $self->_set__spatial_filter_failed_count($qc_result->num_spatial_filter_fail_reads());
+     my $num_total_reads = 0;
+     my $num_spatial_filter_fail_reads = 0;
+     foreach my $qc_result (@{$results}){
+         $num_total_reads               += $qc_result->num_total_reads();
+         $num_spatial_filter_fail_reads += $qc_result->num_spatial_filter_fail_reads();
+     }
+     $self->_set__spatial_filter_processed_count($num_total_reads);
+     $self->_set__spatial_filter_failed_count($num_spatial_filter_fail_reads);
      return $qc_result;
    }
    #set undef for values if no qc results:

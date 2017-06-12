@@ -1,5 +1,6 @@
 LIST OF CHANGES
 ---------------
+ - check_bam_file_cluster_count changes for merged rapid run lane
  - seqchksum_comparator changes for rapid run merging 
  - rapid run lane 1 and 2 merging for stage 2 analysis  
 release 51.9
