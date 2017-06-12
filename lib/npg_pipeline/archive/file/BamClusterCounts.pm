@@ -75,7 +75,7 @@ sub launch {
 
   my @job_ids;
 
-  my @positions = $self->positions();
+  my @positions = $self->lsf_positions();
   if ( ! scalar @positions ) {
     $self->info(q{no positions found, not submitting any jobs});
     return @job_ids;
@@ -111,6 +111,7 @@ sub run_cluster_count_check {
        $spatial_filter_failed /= 2;
      }
      $self->info(qq{Spatial filter applied to $spatial_filter_processed clusters failing $spatial_filter_failed});
+
      if ($pass_cluster_count != $spatial_filter_processed and
          $max_cluster_count != $spatial_filter_processed) {
        my $msg = qq{Spatial filter processed count ($spatial_filter_processed) matches neither raw ($max_cluster_count) or PF ($pass_cluster_count) clusters};
@@ -188,9 +189,10 @@ sub _populate_cluster_counts {
   my $return;
 
   foreach my $l (keys %{$interop}) {
-    if ( $l != $self->position() ) {
+      my $position = $self->rapid_run() ? join q[_],$self->all_positions() : $self->position();
+      if ( $l ne $position){
       next;
-    }
+      }
     $self->_set_bustard_pf_cluster_count( $interop->{$l}->{'cluster count pf'} );
     if ( $type eq q{pf} ) {
       $return = $interop->{$l}->{'cluster count pf'};
@@ -259,12 +261,17 @@ sub parsing_interop {
     return $cluster_count_by_lane;
   }
 
+  my $all_pos;
+  if ($self->rapid_run){ $all_pos = join q[_],$self->all_positions(); }
+
   # calc lane totals
   foreach my $lane (keys %{$tile_metrics}) {
     for my $code (keys %{$tile_metrics->{$lane}}) {
       my $total = 0;
       for ( @{$tile_metrics->{$lane}->{$code}} ){ $total += $_};
+
       $cluster_count_by_lane->{$lane}->{$code} = $total;
+      if ($self->rapid_run){ $cluster_count_by_lane->{$all_pos}->{$code} += $total; }
     }
   }
 
@@ -316,7 +323,8 @@ sub _populate_spatial_filter_counts{
                  $self->qc_path);
    }
    my $collection_lane = $collection->slice(q[position], $position);
-   my $spatial_filter_collection = $collection_lane->slice('class_name', 'spatial_filter');
+   my $spatial_filter_collection = $self->rapid_run ? $collection->slice('class_name', 'spatial_filter')  : 
+                                    $collection_lane->slice('class_name', 'spatial_filter');
 
    if( $spatial_filter_collection->is_empty() ){
      $self->warn("There is no spatial_filter result available for this lane $position in here: ",
@@ -324,6 +332,19 @@ sub _populate_spatial_filter_counts{
    }
 
    my $results = $spatial_filter_collection->results();
+
+   if(@{$results} && $self->rapid_run()){
+       my $num_total_reads = 0;
+       my $num_spatial_filter_fail_reads = 0;
+       foreach my $qc_result (@{$results}){
+           $num_total_reads += $qc_result->num_total_reads();
+           $num_spatial_filter_fail_reads += $qc_result->num_spatial_filter_fail_reads();
+       }
+       $self->_set__spatial_filter_processed_count($num_total_reads);
+       $self->_set__spatial_filter_failed_count($num_spatial_filter_fail_reads);
+       return $results->[0];
+   }
+
    if(@{$results} > 1){
      $self->logcroak("More than one spatial_filter result available for this lane $position in here: ",
                      $self->qc_path);
@@ -385,8 +406,8 @@ sub _bam_cluster_count_total {
 
    my $qc_store = npg_qc::autoqc::qc_store->new( use_db => 0 );
 
-   my $qc_path = $self->qc_path();
-   my $position = $self->position();
+   my $qc_path  = $self->qc_path();
+   my $position = $self->rapid_run() ? q[_]. join q[_],$self->all_positions() : $self->position();
 
    if( $plex ){
       $qc_path =~ s{(?<!lane.)/qc$}{/lane$position/qc}smx;
@@ -400,7 +421,8 @@ sub _bam_cluster_count_total {
    }
 
    my $collection_lane = $collection->slice(q[position], $position);
-   my $bam_flagstats_collection = $collection_lane->slice('class_name', 'bam_flagstats');
+   my $bam_flagstats_collection = $self->rapid_run ? $collection->slice('class_name', 'bam_flagstats')  :
+                                    $collection_lane->slice('class_name', 'bam_flagstats');
 
    if( !$bam_flagstats_collection || $bam_flagstats_collection->is_empty() ){
      $self->info("There is no bam flagstats available for this lane $position in here: $qc_path");
@@ -410,8 +432,8 @@ sub _bam_cluster_count_total {
    my $bam_flagstats_objs = $bam_flagstats_collection->results();
 
    foreach my $bam_flagstats (@{$bam_flagstats_objs}){
-
-      if( $bam_flagstats->id_run() != $self->id_run() ){
+      my @components = $bam_flagstats->composition->components_list;
+      if( $components[0]->id_run() != $self->id_run() ){
          next;
       }
 
