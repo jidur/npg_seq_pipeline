@@ -198,7 +198,7 @@ sub _qc_command {
      if($self->rapid_run && !$self->_is_pre_check){
         $root    = $self->id_run() .q{#}. $tagstr;
         $lanestr = join '_', q[],$self->all_positions; # _1_2
-     } 
+     }
      $c .= q{ --rpt_list=} . $self->_cmd_rpt_list($lanestr,$tagstr,1);
      my $lane_archive_path = File::Spec->catfile($archive_path, q[lane] . $lanestr);
      $qc_in = ( $self->qc_to_run() eq q[adapter]) ?
@@ -248,7 +248,7 @@ sub _cmd_rpt_list {
     my $str;
     my $id_run = $self->id_run();
     if (defined $indexed) {
-       if( $self->rapid_run && !$self->_is_pre_check ){ 
+       if( $self->rapid_run && !$self->_is_pre_check ){
 	        $str = qq{"$id_run}.q{:1:}.$tagstr.q{;}.$id_run.q{:2:}.qq{$tagstr"};
        } else { $str = $id_run.q{:}.$lanestr.q{:}.$tagstr }
     } else {
