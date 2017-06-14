@@ -59,7 +59,7 @@ $arg_refs->{'required_job_completion'}  = $job_dep;;
   is(scalar@jids, 1, q{1 job id returned});
 
   my $bsub_command = $util->drop_temp_part_from_paths( $aqc->_generate_bsub_command($job_dep) );
-  my $expected_command = q{bsub -q srpipeline -R 'select[mem>1500] rusage[mem=1500,nfs_12=1]' -M1500 -R 'span[hosts=1]'  -n2 -w'done(123) && done(321)' -J 'qc_adapter_1234_20090709-123456[1-8]%64' -o } . $pbcal . q{/archive/qc/log/qc_adapter_1234_20090709-123456.%I.%J.out -E 'npg_pipeline_preexec_references' 'qc --check=adapter --file_type=bam --id_run=1234 --position=`echo $LSB_JOBINDEX` } . qq{--qc_in=$pbcal --qc_out=$pbcal/archive/qc'};
+  my $expected_command = q{bsub -q srpipeline -R 'select[mem>1500] rusage[mem=1500,nfs_12=1]' -M1500 -R 'span[hosts=1]'  -n2 -w'done(123) && done(321)' -J 'qc_adapter_1234_20090709-123456[1-8]%64' -o } . $pbcal . q{/archive/qc/log/qc_adapter_1234_20090709-123456.%I.%J.out -E 'npg_pipeline_preexec_references' 'qc --check=adapter --file_type=bam --rpt_list=1234:`echo $LSB_JOBINDEX` } . qq{--qc_in=$pbcal --qc_out=$pbcal/archive/qc'};
 
   is( $bsub_command, $expected_command, q{generated bsub command is correct});
 }
@@ -84,7 +84,7 @@ $arg_refs->{'required_job_completion'}  = $job_dep;;
   is(scalar@jids, 1, q{1 job id returned});
 
   my $bsub_command = $util->drop_temp_part_from_paths( $aqc->_generate_bsub_command() );
-  my $expected_command = q{bsub -q srpipeline -R 'rusage[nfs_12=1]'  -J 'qc_qX_yield_1234_20090709-123456[1-8]%64' -o } . $pbcal . q{/archive/qc/log/qc_qX_yield_1234_20090709-123456.%I.%J.out 'qc --check=qX_yield --id_run=1234 --position=`echo $LSB_JOBINDEX` } . qq{--qc_in=$pbcal/archive --qc_out=$pbcal/archive/qc'};
+  my $expected_command = q{bsub -q srpipeline -R 'rusage[nfs_12=1]'  -J 'qc_qX_yield_1234_20090709-123456[1-8]%64' -o } . $pbcal . q{/archive/qc/log/qc_qX_yield_1234_20090709-123456.%I.%J.out 'qc --check=qX_yield --rpt_list=1234:`echo $LSB_JOBINDEX` } . qq{--qc_in=$pbcal/archive --qc_out=$pbcal/archive/qc'};
   is( $bsub_command, $expected_command, q{generated bsub command is correct});
 }
 
@@ -106,7 +106,7 @@ $arg_refs->{'required_job_completion'}  = $job_dep;;
   is(scalar @jids, 1, q{1 job id returned});
 
   my $bsub_command = $util->drop_temp_part_from_paths( $aqc->_generate_bsub_command($job_dep) );
-  my $expected_command = q{bsub -q srpipeline -R 'rusage[nfs_12=1]' -w'done(123) && done(321)' -J 'qc_qX_yield_1234_20090709-123456[4]%64' -o } . $pbcal . q{/archive/qc/log/qc_qX_yield_1234_20090709-123456.%I.%J.out 'qc --check=qX_yield --id_run=1234 --position=`echo $LSB_JOBINDEX` } . qq{--qc_in=$pbcal/archive --qc_out=$pbcal/archive/qc'};
+  my $expected_command = q{bsub -q srpipeline -R 'rusage[nfs_12=1]' -w'done(123) && done(321)' -J 'qc_qX_yield_1234_20090709-123456[4]%64' -o } . $pbcal . q{/archive/qc/log/qc_qX_yield_1234_20090709-123456.%I.%J.out 'qc --check=qX_yield --rpt_list=1234:`echo $LSB_JOBINDEX` } . qq{--qc_in=$pbcal/archive --qc_out=$pbcal/archive/qc'};
   is( $bsub_command, $expected_command, q{generated bsub command is correct});
 }
 
