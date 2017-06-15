@@ -273,21 +273,6 @@ sub _build_is_hiseqx_run {
   return $self->run->instrument->name =~ /\AH[XF]/xms;
 }
 
-=head2 gclp
-
-Boolean describing whether this analysis is GCLP
-
-=cut
-
-has q{gclp}  => (
-  isa           => q{Bool},
-  is            => q{ro},
-  lazy_build    => 1,
-  documentation => q{Boolean describing whether this analysis is GCLP with a default based on the function_list if set},
-);
-
-
-
 =head2 lsf_positions
 
 An array of lane positions for lsf related submissions.
@@ -300,7 +285,6 @@ sub lsf_positions {
   my @positions = $self->rapid_run ? (($self->positions())[0]) : $self->positions;
   return @positions;
 }
-
 
 =head2 positions
 
@@ -326,34 +310,6 @@ sub all_positions {
   my @position = sort map {$_->position()} $self->lims->children;
   return @position;
 }
-
-=head2 tile_list
-
-A string of wildcards for tiles for OLB, defaults to an empty string
-
-=cut
-
-has q{tile_list} => (isa => q{Str},
-                     is => q{ro},
-                     default => q{},
-                     documentation => q{string of wildcards for tiles for OLB, defaults to an empty string},);
-
-=head2 override_all_bustard_options
-
-Overrides all bustard options (including any given via other options) as a string - it is up to the user to ensure all are correct and given
-
-=head2 has_override_all_bustard_options
-
-predicate to ensure that options are available
-
-=cut
-
-has q{override_all_bustard_options} => (
-  isa => q{Str},
-  is => q{ro},
-  predicate => q{has_override_all_bustard_options},
-  documentation => q{Overrides all bustard options (including any given via other options) as a string - it is up to the user to ensure all are correct and given - i.e. only use if you know what you are doing.},
-);
 
 =head2 repository
 

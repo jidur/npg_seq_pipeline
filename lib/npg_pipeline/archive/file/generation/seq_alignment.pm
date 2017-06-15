@@ -234,8 +234,8 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
   my $do_rna = $self->_do_rna_analysis($l);
 
   my $hs_bwa = ($self->is_paired_read ? 'bwa_aln' : 'bwa_aln_se');
-  # continue to use the "aln" algorithm from bwa for these older chemistries (where read length <= 100bp) unless GCLP
-  my $bwa = ($self->gclp or $self->is_hiseqx_run or $self->_has_newer_flowcell or any {$_ >= $FORCE_BWAMEM_MIN_READ_CYCLES } $self->read_cycle_counts)
+  # continue to use the "aln" algorithm from bwa for these older chemistries (where read length <= 100bp)
+  my $bwa = ($self->is_hiseqx_run or $self->_has_newer_flowcell or any {$_ >= $FORCE_BWAMEM_MIN_READ_CYCLES } $self->read_cycle_counts)
             ? 'bwa_mem'
             : $hs_bwa;
 
@@ -343,9 +343,8 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
   }
 
   if($l->separate_y_chromosome_data) {
-    $p4_param_vals->{split_bam_by_chromosome_flags} = q[S=Y];
-    $p4_param_vals->{split_bam_by_chromosome_flags} = q[V=true];
-    $p4_param_vals->{split_bam_by_chromosomes_jar} = $self->_SplitBamByChromosomes_jar;
+    $p4_param_vals->{chrsplit_subset_flag} = ['--subset', 'Y,chrY,ChrY,chrY_KI270740v1_random'];
+    $p4_param_vals->{chrsplit_invert_flag} = q[--invert];
   }
 
 # write p4 parameters to file
@@ -403,6 +402,10 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
                          q{&&},
                          _qc_command('bam_flagstats', $archive_path, $qcpath, $rpt_list, $name_root, $nchs_outfile_label),
                          : q(),
+                       $do_rna ? join q( ),
+                         q{&&},
+                         _qc_command('rna_seqc', $archive_path, $qcpath, $rpt_list, $name_root),
+                         : q()
                        ),
                      q(');
 }
@@ -412,7 +415,7 @@ sub _qc_command {##no critic (Subroutines::ProhibitManyArgs)
 
   my $args = {'rpt_list' => q["].$rpt_list.q["]};
 
-  if ($check_name eq 'bam_flagstats') {
+  if ($check_name =~ /^bam_flagstats|rna_seqc$/smx) {
     if ($subset) {
       $name_root .= q[_]. $subset;
     }
@@ -428,6 +431,7 @@ sub _qc_command {##no critic (Subroutines::ProhibitManyArgs)
   foreach my $arg (sort keys %{$args}) {
     $command .= join q[ ], q[ --].$arg, $args->{$arg};
   }
+
   return $QC_SCRIPT_NAME . $command;
 }
 
@@ -603,7 +607,11 @@ sub _ref {
       $self->warn(qq{No reference genome set for $lstring});
     } else {
       if (scalar @refs > 1) {
-        $self->logcroak(qq{Multiple references for $lstring});
+        if (defined $l->tag_index && $l->tag_index == 0) {
+          $self->logwarn(qq{Multiple references for $lstring});
+        } else {
+          $self->logcroak(qq{Multiple references for $lstring});
+        }
       } else {
         $ref = $refs[0];
         if ($ref_name) {
