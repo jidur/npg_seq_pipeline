@@ -418,6 +418,7 @@ sub _qc_command {##no critic (Subroutines::ProhibitManyArgs)
   if ($check_name =~ /^bam_flagstats|rna_seqc$/smx) {
     if ($subset) {
       $name_root .= q[_]. $subset;
+      $args->{'subset'} = $subset;
     }
     $args->{'input_files'}  = $qc_in .q[/]. $name_root . $INPUT_SUFFIX;
   } else {
