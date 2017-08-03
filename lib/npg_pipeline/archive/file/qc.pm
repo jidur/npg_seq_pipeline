@@ -132,7 +132,7 @@ sub _generate_bsub_command {
 sub _is_pre_check{
     my($self,$check) = @_;
     my $qc = $self->qc_to_run;
-    if ($qc =~ /^qX_yield|adapter|insert_size|sequence_error|gc_fraction|ref_match$/smx){
+    if ($qc =~ /^qX_yield|adapter|insert_size|sequence_error|gc_fraction|ref_match|upstream_tags$/smx){
         return 1;
     }
     return;
