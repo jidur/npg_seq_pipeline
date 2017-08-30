@@ -248,7 +248,7 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
                     $l->separate_y_chromosome_data    ? q(yhuman) :
                     q();
 
-  my $do_target_alignment = ($self->_ref($l,q(fasta)) and $l->alignments_in_bam);
+  my $do_target_alignment = ($self->_ref($l,q(fasta)) and $l->alignments_in_bam and not ($l->library_type and $l->library_type =~ /Chromium/smx));
   my $nchs = $l->contains_nonconsented_human;
   my $nchs_template_label = q{};
   if($nchs) {
@@ -273,7 +273,7 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
   #   separate templates, so these steps do not apply.
   ########
   my @no_tgt_aln_flags = ();
-  if((not $self->_ref($l,q(fasta)) or not $l->alignments_in_bam) and not $nchs and not $spike_tag) {
+  if((not $self->_ref($l,q(fasta)) or not $l->alignments_in_bam or ($l->library_type and $l->library_type =~ /Chromium/smx)) and not $nchs and not $spike_tag) {
 
     push @no_tgt_aln_flags,
       q[-splice_nodes '"'"'src_bam:-alignment_filter:__PHIX_BAM_IN__'"'"'],
@@ -322,8 +322,9 @@ sub _lsf_alignment_command { ## no critic (Subroutines::ProhibitExcessComplexity
     $p4_param_vals->{alignment_method} = q[tophat2];
     if($do_target_alignment) { $p4_param_vals->{alignment_reference_genome} = $self->_ref($l,q(bowtie2)); }
     if($nchs) {
-      $p4_param_vals->{hs_alignment_reference_genome} = $self->_default_human_split_ref(q{bowtie2}, $self->repository);
-      $p4_param_vals->{alignment_hs_method} = q[tophat2];
+      # this human split alignment method is currently the same as the default, but this may change
+      $p4_param_vals->{hs_alignment_reference_genome} = $self->_default_human_split_ref(q{bwa0_6}, $self->repository);
+      $p4_param_vals->{alignment_hs_method} = $hs_bwa;
     }
   }
   else {

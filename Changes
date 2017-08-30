@@ -4,6 +4,16 @@ LIST OF CHANGES
  - seqchksum_comparator changes for rapid run merging 
  - rapid run lane 1 and 2 merging for stage 2 analysis  
 
+release 51.10.3
+ - no alignments for chromium libraries
+
+release 51.10.2
+ - use bwa aln for human split with tophat target alignment
+
+release 51.10.1
+ - Modified qc run function list, removed copy_interop and switched archive_to_irods to samplesheet
+ 
+release 51.10
  - Chained execution of RNA-SeQC to the vtfp/viv alignment cmd for RNA-Seq libraries only:
      entries for qc check rna_seqc removed from central function and parallelisation.
      code that created rna_seqc-specific directories has been removed as this is

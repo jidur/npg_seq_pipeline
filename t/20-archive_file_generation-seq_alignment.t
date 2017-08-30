@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 12;
+use Test::More tests => 13;
 use Test::Exception;
 use Test::Deep;
 use Test::Warn;
@@ -857,7 +857,82 @@ subtest 'test 11' => sub {
   $args->{1} = qq{bash -c ' mkdir -p $archive_path/tmp_\$LSB_JOBID/20145 ; cd $archive_path/tmp_\$LSB_JOBID/20145 && vtfp.pl -param_vals $bc_path/20145_p4s2_pv_in.json -export_param_vals 20145_p4s2_pv_out_\${LSB_JOBID}.json -keys cfgdatadir -vals \$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib/ -keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads` -keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2` -keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2` -keys src_bams -vals $bc_path/20145_1.bam -keys src_bams -vals $bc_path/20145_2.bam -prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-;.*calibration_pu.*-'"'"' \$(dirname \$(dirname \$(readlink -f \$(which vtfp.pl))))/data/vtlib/alignment_wtsi_stage2_template.json > run_20145.json && viv.pl -s -x -v 3 -o viv_20145.log run_20145.json  && qc --check bam_flagstats --filename_root 20145 --input_files $archive_path/20145.bam --qc_out $archive_path/qc --rpt_list "20145:1;20145:2" && qc --check bam_flagstats --filename_root 20145_phix --input_files $archive_path/20145_phix.bam --qc_out $archive_path/qc --rpt_list "20145:1;20145:2" --subset phix && qc --check alignment_filter_metrics --filename_root 20145 --input_files \$PWD/20145.bam_alignment_filter_metrics.json --qc_out $archive_path/qc --rpt_list "20145:1;20145:2" '}; 
 
   cmp_deeply ($rr_gen->_job_args,$args, 'correct RR barcode non-multiplex lane args generated');
+};
    
+subtest 'test 12' => sub {
+  ##HiSeqX, run 16839_1
+
+  my $ref_dir = join q[/],$dir,'references','Homo_sapiens','GRCh38_full_analysis_set_plus_decoy_hla','all';
+  `mkdir -p $ref_dir/fasta`;
+  `mkdir -p $ref_dir/bwa0_6`;
+  `mkdir -p $ref_dir/picard`;
+
+  my $runfolder = q{150709_HX4_16839_A_H7MHWCCXX};
+  my $runfolder_path = join q[/], $dir, $runfolder;
+  my $bc_path = join q[/], $runfolder_path, 'Data/Intensities/BAM_basecalls_20150712-121006/no_cal';
+  `mkdir -p $bc_path`;
+  my $cache_dir = join q[/], $runfolder_path, 'Data/Intensities/BAM_basecalls_20150712-121006/metadata_cache_16839';
+  `mkdir -p $cache_dir`;
+  copy("t/data/hiseqx/16839_RunInfo.xml","$runfolder_path/RunInfo.xml") or die "Copy failed: $!"; #to get information that it is paired end
+  my $fasta_ref = "$ref_dir/fasta/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa";
+  `touch $fasta_ref`;
+  `touch $ref_dir/picard/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa.dict`;
+  `touch $ref_dir/bwa0_6/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa.alt`;
+  `touch $ref_dir/bwa0_6/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa.amb`;
+  `touch $ref_dir/bwa0_6/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa.ann`;
+  `touch $ref_dir/bwa0_6/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa.bwt`;
+  `touch $ref_dir/bwa0_6/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa.pac`;
+  `touch $ref_dir/bwa0_6/Homo_sapiens.GRCh38_full_analysis_set_plus_decoy_hla.fa.sa`;
+
+  local $ENV{'NPG_WEBSERVICE_CACHE_DIR'} = q[t/data/hiseqx];
+  local $ENV{'NPG_CACHED_SAMPLESHEET_FILE'} = q[t/data/hiseqx/samplesheet_16839.csv];
+
+  my $chromium_gen;
+  lives_ok {
+    $chromium_gen = npg_pipeline::archive::file::generation::seq_alignment->new(
+      run_folder        => $runfolder,
+      runfolder_path    => $runfolder_path,
+      recalibrated_path => $bc_path,
+      timestamp         => q{2015},
+      repository        => $dir,
+      no_bsub           => 1,
+    )
+  } 'no error creating an object';
+  is ($chromium_gen->id_run, 16839, 'id_run inferred correctly');
+
+  my $old_ss = $ENV{'NPG_CACHED_SAMPLESHEET_FILE'};
+  my $ss = slurp $old_ss;
+  $ss =~ s/Standard/Chromium single cell/;
+  my $new_ss = "$dir/chromium_samplesheet_16839.csv";
+  open my $fhss, '>', $new_ss or die "Cannot open $new_ss for writing";
+  print $fhss $ss or die "Cannot write to $new_ss";
+  close $fhss or warn "Failed to close $new_ss";
+  # new samplesheet has one chromium sample in lane 1
+  local $ENV{'NPG_CACHED_SAMPLESHEET_FILE'} = $new_ss;
+
+  my $qc_in  = qq{$dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/archive/lane1};
+  my $qc_out = qq{$qc_in/qc};
+  my $args = {};
+  $args->{10001} = qq{bash -c ' mkdir -p $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/archive/tmp_\$LSB_JOBID/16839_1#1 ; cd $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/archive/tmp_\$LSB_JOBID/16839_1#1 && vtfp.pl -param_vals $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/lane1/16839_1#1_p4s2_pv_in.json -export_param_vals 16839_1#1_p4s2_pv_out_\${LSB_JOBID}.json -keys cfgdatadir -vals \$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib/ -keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads` -keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2` -keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2` -keys src_bams -vals $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/lane1/16839_1#1.bam -prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-'"'"' -splice_nodes '\"'\"'src_bam:-alignment_filter:__PHIX_BAM_IN__'\"'\"' -keys scramble_reference_flag -vals '\"'\"'-x'\"'\"' -nullkeys stats_reference_flag -nullkeys af_target_in_flag -keys af_target_out_flag_name -vals '\"'\"'UNALIGNED'\"'\"' \$(dirname \$(dirname \$(readlink -f \$(which vtfp.pl))))/data/vtlib/alignment_wtsi_stage2_template.json > run_16839_1#1.json && viv.pl -s -x -v 3 -o viv_16839_1#1.log run_16839_1#1.json } .
+    qq{ && qc --check bam_flagstats --filename_root 16839_1#1 --input_files $qc_in/16839_1#1.bam --qc_out $qc_out --rpt_list "16839:1:1"} .
+    qq{ && qc --check bam_flagstats --filename_root 16839_1#1_phix --input_files $qc_in/16839_1#1_phix.bam --qc_out $qc_out --rpt_list "16839:1:1" --subset phix} .
+     q{ && qc --check alignment_filter_metrics --filename_root 16839_1#1 --input_files $PWD/16839_1#1.bam_alignment_filter_metrics.json --qc_out } .$qc_out.q{ --rpt_list "16839:1:1"}.
+     q{ '};
+  $args->{10009} = qq{bash -c ' mkdir -p $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/archive/tmp_\$LSB_JOBID/16839_1#9 ; cd $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/archive/tmp_\$LSB_JOBID/16839_1#9 && vtfp.pl -param_vals $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/lane1/16839_1#9_p4s2_pv_in.json -export_param_vals 16839_1#9_p4s2_pv_out_\${LSB_JOBID}.json -keys cfgdatadir -vals \$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib/ -keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads` -keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2` -keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2` -keys src_bams -vals $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/lane1/16839_1#9.bam -prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-'"'"' \$(dirname \$(dirname \$(readlink -f \$(which vtfp.pl))))/data/vtlib/alignment_wtsi_stage2_template.json > run_16839_1#9.json && viv.pl -s -x -v 3 -o viv_16839_1#9.log run_16839_1#9.json } .
+    qq{ && qc --check bam_flagstats --filename_root 16839_1#9 --input_files $qc_in/16839_1#9.bam --qc_out $qc_out --rpt_list "16839:1:9"} .
+    qq{ && qc --check bam_flagstats --filename_root 16839_1#9_phix --input_files $qc_in/16839_1#9_phix.bam --qc_out $qc_out --rpt_list "16839:1:9" --subset phix} .
+     q{ && qc --check alignment_filter_metrics --filename_root 16839_1#9 --input_files $PWD/16839_1#9.bam_alignment_filter_metrics.json --qc_out } .$qc_out.q{ --rpt_list "16839:1:9"}.
+     q{ '};
+  $args->{10000} = qq{bash -c ' mkdir -p $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/archive/tmp_\$LSB_JOBID/16839_1#0 ; cd $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/archive/tmp_\$LSB_JOBID/16839_1#0 && vtfp.pl -param_vals $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/lane1/16839_1#0_p4s2_pv_in.json -export_param_vals 16839_1#0_p4s2_pv_out_\${LSB_JOBID}.json -keys cfgdatadir -vals \$(dirname \$(readlink -f \$(which vtfp.pl)))/../data/vtlib/ -keys aligner_numthreads -vals `npg_pipeline_job_env_to_threads` -keys br_numthreads_val -vals `npg_pipeline_job_env_to_threads --exclude 1 --divide 2` -keys b2c_mt_val -vals `npg_pipeline_job_env_to_threads --exclude 2 --divide 2` -keys src_bams -vals $dir/150709_HX4_16839_A_H7MHWCCXX/Data/Intensities/BAM_basecalls_20150712-121006/no_cal/lane1/16839_1#0.bam -prune_nodes '"'"'fop.*samtools_stats_F0.*00_bait.*-'"'"' \$(dirname \$(dirname \$(readlink -f \$(which vtfp.pl))))/data/vtlib/alignment_wtsi_stage2_template.json > run_16839_1#0.json && viv.pl -s -x -v 3 -o viv_16839_1#0.log run_16839_1#0.json } .
+    qq{ && qc --check bam_flagstats --filename_root 16839_1#0 --input_files $qc_in/16839_1#0.bam --qc_out $qc_out --rpt_list "16839:1:0"} .
+    qq{ && qc --check bam_flagstats --filename_root 16839_1#0_phix --input_files $qc_in/16839_1#0_phix.bam --qc_out $qc_out --rpt_list "16839:1:0" --subset phix} .
+     q{ && qc --check alignment_filter_metrics --filename_root 16839_1#0 --input_files $PWD/16839_1#0.bam_alignment_filter_metrics.json --qc_out } .$qc_out.q{ --rpt_list "16839:1:0"}.
+     q{ '};
+
+  lives_ok {$chromium_gen->_generate_command_arguments([1])}
+     'no error generating command arguments for a lane with one chromium sample';
+  cmp_deeply ($chromium_gen->_job_args, $args,
+    'correct command arguments for lane 16839_1 with one chromium sample');
 };
 
 1;
