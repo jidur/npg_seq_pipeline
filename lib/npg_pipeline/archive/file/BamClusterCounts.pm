@@ -322,9 +322,8 @@ sub _populate_spatial_filter_counts{
      $self->warn("There are no qc results available for this lane $position in here: ",
                  $self->qc_path);
    }
-   my $collection_lane = $collection->slice(q[position], $position);
    my $spatial_filter_collection = $self->rapid_run ? $collection->slice('class_name', 'spatial_filter')  :
-                                    $collection_lane->slice('class_name', 'spatial_filter');
+                                    $collection->slice(q[position], $position)->slice('class_name', 'spatial_filter');
 
    if( $spatial_filter_collection->is_empty() ){
      $self->warn("There is no spatial_filter result available for this lane $position in here: ",
@@ -414,9 +413,8 @@ sub _bam_cluster_count_total {
      return $bam_cluster_count;
    }
 
-   my $collection_lane = $collection->slice(q[position], $position);
    my $bam_flagstats_collection = $self->rapid_run ? $collection->slice('class_name', 'bam_flagstats')  :
-                                    $collection_lane->slice('class_name', 'bam_flagstats');
+                                    $collection->slice(q[position], $position)->slice('class_name', 'bam_flagstats');
 
    if( !$bam_flagstats_collection || $bam_flagstats_collection->is_empty() ){
      $self->info("There is no bam flagstats available for this lane $position in here: $qc_path");
